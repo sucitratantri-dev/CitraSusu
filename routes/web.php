@@ -1,0 +1,71 @@
+<?php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MainController;
+
+Route::get('/', fn()=>auth()->check()?redirect()->route('dashboard'):redirect()->route('shop'))->name('home');
+Route::middleware('guest')->group(function(){
+ Route::get('/login',fn()=>view('auth'))->name('login');
+ Route::post('/login',[AuthController::class,'login'])->name('login.post');
+ Route::get('/register',fn()=>view('auth',['register'=>true]))->name('register');
+ Route::post('/register',[AuthController::class,'register'])->name('register.post');
+});
+Route::post('/logout',[AuthController::class,'logout'])->middleware('auth')->name('logout');
+Route::get('/shop',[MainController::class,'shop'])->name('shop');
+Route::get('/products/{id}',[MainController::class,'product'])->name('product');
+Route::middleware('auth')->group(function(){
+ Route::get('/dashboard',[MainController::class,'dashboard'])->name('dashboard');
+ Route::get('/cart',[MainController::class,'cart'])->name('cart');
+ Route::post('/cart/{id}',[MainController::class,'addCart'])->name('cart.add');
+ Route::patch('/cart',[MainController::class,'updateCart'])->name('cart.update');
+ Route::delete('/cart/{id}',[MainController::class,'removeCart'])->name('cart.remove');
+ Route::get('/checkout',[MainController::class,'checkout'])->name('checkout');
+ Route::post('/checkout',[MainController::class,'placeOrder'])->name('checkout.place');
+ Route::get('/orders',[MainController::class,'orders'])->name('orders');
+ Route::get('/orders/{id}',[MainController::class,'orderShow'])->name('orders.show');
+ Route::get('/chat',[MainController::class,'chatIndex'])->middleware('role:buyer,employee')->name('chat');
+ Route::post('/chat/open',[MainController::class,'chatOpen'])->middleware('role:buyer,employee')->name('chat.open');
+ Route::get('/chat/{id}',[MainController::class,'chatShow'])->middleware('role:buyer,employee')->name('chat.show');
+ Route::post('/chat/{id}',[MainController::class,'chatSend'])->middleware('role:buyer,employee')->name('chat.send');
+ Route::get('/chat/{id}/poll',[MainController::class,'chatPoll'])->middleware('role:buyer,employee')->name('chat.poll');
+ Route::get('/notifications',[MainController::class,'notifications'])->name('notifications');
+ Route::get('/profile',[MainController::class,'profile'])->name('profile');
+ Route::put('/profile',[MainController::class,'updateProfile'])->name('profile.update');
+});
+Route::middleware(['auth','role:admin'])->prefix('owner')->name('owner.')->group(function(){
+ Route::get('/sales',[\App\Http\Controllers\OwnerController::class,'reportSales'])->name('sales');
+ Route::get('/finance',[\App\Http\Controllers\OwnerController::class,'finance'])->name('finance');
+ Route::get('/{type}',[\App\Http\Controllers\OwnerController::class,'generic'])->whereIn('type',['products','batches','receipts','suppliers','orders','payments','deliveries','employees'])->name('list');
+});
+Route::middleware(['auth','role:admin,employee'])->prefix('admin')->name('admin.')->group(function(){
+ Route::get('/products',[MainController::class,'adminProducts'])->middleware('role:employee')->name('products');
+ Route::get('/products/create',[MainController::class,'productForm'])->middleware('role:employee')->name('products.create');
+ Route::get('/products/{id}/edit',[MainController::class,'productForm'])->middleware('role:employee')->name('products.edit');
+ Route::post('/products',[MainController::class,'saveProduct'])->middleware('role:employee')->name('products.store');
+ Route::put('/products/{id}',[MainController::class,'saveProduct'])->middleware('role:employee')->name('products.update');
+ Route::delete('/products/{id}',[MainController::class,'deleteProduct'])->middleware('role:employee')->name('products.delete');
+ Route::get('/batches',[MainController::class,'batches'])->name('batches');
+ Route::post('/batches/{id}/check',[MainController::class,'checkBatch'])->middleware('role:employee')->name('batches.check');
+ Route::get('/suppliers',[MainController::class,'suppliers'])->middleware('role:employee')->name('suppliers');
+ Route::post('/suppliers',[MainController::class,'saveSupplier'])->middleware('role:employee')->name('suppliers.store');
+ Route::get('/receipts/create',[MainController::class,'receiptForm'])->middleware('role:employee')->name('receipts.create');
+ Route::post('/receipts',[MainController::class,'saveReceipt'])->middleware('role:employee')->name('receipts.store');
+ Route::get('/returns',[MainController::class,'returnsIndex'])->name('returns');
+ Route::get('/returns/create',[MainController::class,'returnForm'])->middleware('role:employee')->name('returns.create');
+ Route::post('/returns',[MainController::class,'saveReturn'])->middleware('role:employee')->name('returns.store');
+ Route::put('/returns/{id}',[MainController::class,'decideReturn'])->middleware('role:admin')->name('returns.decide');
+ Route::get('/orders',[MainController::class,'ordersAdmin'])->middleware('role:employee')->name('orders');
+ Route::put('/orders/{id}',[MainController::class,'updateOrder'])->middleware('role:employee')->name('orders.update');
+ Route::middleware('role:admin')->group(function(){ Route::post('/orders/{id}/assign',[MainController::class,'assignCourier'])->middleware('role:employee')->name('orders.assign'); Route::get('/reports',[MainController::class,'reports'])->name('reports'); });
+});
+Route::middleware(['auth','role:courier'])->prefix('courier')->name('courier.')->group(function(){
+ Route::get('/orders',[MainController::class,'courierOrders'])->name('orders');
+ Route::post('/orders/{id}/take',[MainController::class,'takeDelivery'])->name('take');
+ Route::put('/orders/{id}/status',[MainController::class,'deliveryStatus'])->name('status');
+});
+
+
+// CITRA SUSU GEMINI AI
+Route::post('/ai-chat/send', [\App\Http\Controllers\GeminiChatController::class, 'send'])
+    ->middleware('throttle:10,1')
+    ->name('ai-chat.send');

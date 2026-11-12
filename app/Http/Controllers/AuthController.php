@@ -1,0 +1,20 @@
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+
+class AuthController extends Controller {
+ public function login(Request $r) {
+  $data=$r->validate(['email'=>'required|email','password'=>'required|string']);
+  if(Auth::attempt($data,$r->boolean('remember')) && Auth::user()->is_active){$r->session()->regenerate(); return redirect()->intended(route('dashboard'));}
+  Auth::logout(); return back()->withErrors(['email'=>'Email atau kata sandi salah / akun nonaktif.'])->onlyInput('email');
+ }
+ public function register(Request $r){
+  $d=$r->validate(['name'=>'required|string|max:120','email'=>'required|email|unique:users,email','phone'=>'required|string|max:30','password'=>'required|string|min:8|confirmed']);
+  $u=User::create(['name'=>$d['name'],'email'=>$d['email'],'phone'=>$d['phone'],'password'=>Hash::make($d['password']),'role'=>'buyer','is_active'=>true]);
+  Auth::login($u); $r->session()->regenerate(); return redirect()->route('dashboard');
+ }
+ public function logout(Request $r){Auth::logout();$r->session()->invalidate();$r->session()->regenerateToken();return redirect()->route('login');}
+}
